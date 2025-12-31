@@ -9,7 +9,7 @@
     <!-- Font Awesome for icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     
-    <!-- Ad SDK -->
+    <!-- Ad SDK (Monetag) -->
     <script src='//libtl.com/sdk.js' data-zone='10397973' data-sdk='show_10397973'></script>
     
     <style>
@@ -172,7 +172,7 @@
                 download_link_button: "Download Link", 
                 download_html_button: "Download HTML File",
                 view_text_button: "View & Copy Text",
-                toast_download_starting: "Processing...", 
+                toast_download_starting: "Opening...", 
                 toast_progress: "Progress: {adCount}/{requiredCount}", toast_unlocked: "Unlocked successfully!", toast_ad_error: "Could not load ad.", loading_ad: "Loading ad...", verifying_button: "Wait {countdown}s", 
             },
             hi: { 
@@ -181,7 +181,7 @@
                 download_link_button: "लिंक डाउनलोड करें", 
                 download_html_button: "HTML फाइल डाउनलोड करें",
                 view_text_button: "टेक्स्ट देखें और कॉपी करें",
-                toast_download_starting: "प्रक्रिया जारी है...", 
+                toast_download_starting: "खुल रहा है...", 
                 toast_progress: "प्रगति: {adCount}/{requiredCount}", toast_unlocked: "अनलॉक हो गया!", toast_ad_error: "विज्ञापन लोड त्रुटि।", loading_ad: "लोड हो रहा है...", verifying_button: "प्रतीक्षा करें {countdown}s", 
             },
             bn: { 
@@ -190,7 +190,7 @@
                 download_link_button: "ডাউনলোড লিঙ্ক", 
                 download_html_button: "HTML ফাইল ডাউনলোড করুন",
                 view_text_button: "টেক্সট দেখুন এবং কপি করুন",
-                toast_download_starting: "প্রক্রিয়া করা হচ্ছে...", 
+                toast_download_starting: "খোলা হচ্ছে...", 
                 toast_progress: " অগ্রগতি: {adCount}/{requiredCount}", toast_unlocked: "আনলক করা হয়েছে!", toast_ad_error: "বিজ্ঞাপন লোড করা যায়নি।", loading_ad: "লোড হচ্ছে...", verifying_button: "অপেক্ষা করুন {countdown}s", 
             }
         };
@@ -238,7 +238,7 @@
         }
 
         async function loadUserPageData() {
-            // Ads
+            // Ads from Firestore
             try {
                 const docSnap = await getDoc(doc(db, "settings", "ads"));
                 if (docSnap.exists()) {
@@ -293,7 +293,6 @@
                 
                 snap.forEach(doc => {
                     const d = doc.data();
-                    // Default to 'link' if fileType is missing for backward compatibility
                     const fileType = d.fileType || 'link'; 
                     
                     const obj = {
@@ -312,7 +311,6 @@
                     card.dataset.title = obj.title.toLowerCase();
                     card.dataset.description = obj.description.toLowerCase();
                     
-                    // Initial Icon based on type
                     let iconClass = 'fas fa-download';
                     if(fileType === 'text') iconClass = 'fas fa-file-alt';
                     if(fileType === 'html') iconClass = 'fas fa-file-code';
@@ -362,11 +360,10 @@
             const i = btn.querySelector('i');
             
             btn.disabled = false;
-            // Set Color: Blue/Purple for locked, Green for unlocked
+            // Green for unlocked, Blue/Purple for locked
             btn.className = `download-btn w-full mt-4 py-2.5 px-4 rounded-lg text-white font-semibold shadow-md flex items-center justify-center gap-2 transition-all ${unlocked ? 'bg-gradient-to-r from-green-500 to-green-700 hover:from-green-600 hover:to-green-800' : 'bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700'}`;
             
             if (unlocked) {
-                // Update text based on file type
                 if(data.fileType === 'html') {
                     span.textContent = getText('download_html_button');
                     i.className = 'fas fa-file-code';
@@ -374,7 +371,6 @@
                     span.textContent = getText('view_text_button');
                     i.className = 'fas fa-copy';
                 } else {
-                    // Default / Link
                     span.textContent = getText('download_link_button');
                     i.className = 'fas fa-download';
                 }
@@ -384,7 +380,7 @@
             }
         }
 
-        // --- BUTTON ACTION ---
+        // --- BUTTON ACTION (UPDATED NO-DELAY) ---
         function handleAction(e) {
             const btn = e.target.closest('.download-btn');
             if(!btn || btn.disabled) return;
@@ -398,41 +394,47 @@
             const count = parseInt(localStorage.getItem(`adCount_${id}`)||0);
 
             if(count >= req) {
+                // UNLOCKED STATE: Immediate Action
                 showToast('toast_download_starting');
                 
-                setTimeout(() => {
-                    if(data.fileType === 'html') {
-                        // LOGIC: Download content as an HTML file
-                        downloadStringAsFile(data.contentValue, data.title + ".html", "text/html");
-                    } 
-                    else if (data.fileType === 'text') {
-                        // LOGIC: Open Modal for copying text
-                        openTextModal(data.title, data.contentValue);
-                    } 
-                    else {
-                        // LOGIC: Open Link
-                        const w = window.open(data.contentValue, '_blank');
-                        if(!w || w.closed || typeof w.closed=='undefined') window.location.href = data.contentValue;
-                    }
-                }, 1000);
+                // Direct download without setTimeout to fix mobile security blocks
+                if(data.fileType === 'html') {
+                    if(!data.contentValue) { alert("Content is empty!"); return; }
+                    // Clean filename
+                    const safeName = (data.title || "file").replace(/[^a-z0-9]/gi, '_').toLowerCase();
+                    downloadStringAsFile(data.contentValue, safeName + ".html", "text/html");
+                } 
+                else if (data.fileType === 'text') {
+                    openTextModal(data.title, data.contentValue);
+                } 
+                else {
+                    // Link
+                    const w = window.open(data.contentValue, '_blank');
+                    if(!w || w.closed || typeof w.closed=='undefined') window.location.href = data.contentValue;
+                }
             } else {
+                // LOCKED STATE
                 processUnlock(btn);
             }
         }
 
-        // Helper function to download string as file
+        // --- DOWNLOAD HELPER ---
         function downloadStringAsFile(content, filename, mimeType) {
             const blob = new Blob([content], { type: mimeType });
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
+            a.style.display = 'none';
             a.href = url;
             a.download = filename;
+            
+            // Appending to body is required for some mobile browsers
             document.body.appendChild(a);
             a.click();
+            
             setTimeout(() => {
                 document.body.removeChild(a);
                 window.URL.revokeObjectURL(url);
-            }, 0);
+            }, 100);
         }
 
         async function processUnlock(btn) {
@@ -445,15 +447,25 @@
             try {
                 span.textContent = getText('loading_ad');
                 
-                await show_10397973(); // Ad SDK Call
+                // Check if Ad function exists (Monetag SDK)
+                if (typeof show_10397973 === 'function') {
+                    await show_10397973().catch(err => {
+                        console.warn("Ad closed or failed: ", err);
+                    });
+                } else {
+                    console.error("Ad SDK not loaded. Check Internet or AdBlocker.");
+                }
                 
+                // Increment count even if ad fails (to not block user)
                 count++;
                 localStorage.setItem(`adCount_${id}`, count);
+
                 if(count >= req) {
                     showToast('toast_unlocked');
                     updateButtonState(btn);
                     return;
                 }
+                
                 showToast('toast_progress', { adCount: count, requiredCount: req });
                 let t = timerDuration;
                 span.textContent = getText('verifying_button', { countdown: t });
@@ -462,6 +474,7 @@
                     if(t>0) span.textContent = getText('verifying_button', { countdown: t });
                     else { clearInterval(iv); updateButtonState(btn); }
                 }, 1000);
+
             } catch (err) {
                 console.error(err);
                 showToast('toast_ad_error');
@@ -469,19 +482,17 @@
             }
         }
 
-        // --- TEXT MODAL LOGIC ---
+        // --- TEXT MODAL ---
         function openTextModal(title, content) {
             modalTitle.textContent = title;
             modalBody.innerHTML = `<textarea readonly class="w-full h-full p-4 border rounded bg-gray-50 text-gray-800 font-mono text-sm resize-none focus:outline-none focus:ring-2 focus:ring-blue-500">${content}</textarea>`;
             
-            // Set up Copy Button Logic
             copyBtn.onclick = () => {
                 navigator.clipboard.writeText(content).then(() => {
                     const originalHtml = copyBtn.innerHTML;
                     copyBtn.innerHTML = '<i class="fas fa-check"></i> Copied!';
                     copyBtn.classList.remove('bg-blue-600', 'hover:bg-blue-700');
                     copyBtn.classList.add('bg-green-600', 'hover:bg-green-700');
-                    
                     setTimeout(() => {
                         copyBtn.innerHTML = originalHtml;
                         copyBtn.classList.remove('bg-green-600', 'hover:bg-green-700');
@@ -489,7 +500,6 @@
                     }, 2000);
                 });
             };
-            
             contentModal.classList.remove('hidden');
         }
 
@@ -519,4 +529,4 @@
         document.querySelectorAll('.lang-btn').forEach(b => b.addEventListener('click', () => applyLanguage(b.dataset.lang)));
     </script>
 </body>
-                    </html>
+</html>
