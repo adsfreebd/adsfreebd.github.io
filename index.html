@@ -8,8 +8,10 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Font Awesome for icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-    <!-- Ad SDK -->
+    
+    <!-- Ad SDK (Updated) -->
     <script src='//libtl.com/sdk.js' data-zone='10397973' data-sdk='show_10397973'></script>
+    
     <style>
         /* Animations */
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
@@ -380,7 +382,10 @@
 
             try {
                 span.textContent = getText('loading_ad');
-                await show_9745051(); // Trigger Ad
+                
+                // UPDATED AD CALL FOR NEW ZONE ID
+                await show_10397973(); 
+                
                 count++;
                 localStorage.setItem(`adCount_${id}`, count);
                 if(count >= req) {
@@ -455,4 +460,4 @@
         document.querySelectorAll('.lang-btn').forEach(b => b.addEventListener('click', () => applyLanguage(b.dataset.lang)));
     </script>
 </body>
-    </html>
+</html>
